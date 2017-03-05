@@ -1,0 +1,19 @@
+{
+  "name": "elm-markets",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "start": "cd example && elm-reactor",
+    "test": "elm-test"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "elm": "^0.18.0",
+    "elm-test": "^0.18.2"
+  }
+}
