@@ -7,6 +7,7 @@ module Market
         , Market
         , market
         , marketName
+        , rateLimit
         , pairs
         , orderBooks
         , recentTrades
@@ -35,7 +36,7 @@ module Market
 @docs MarketName, emptyMarketName, marketName, marketNameToString, marketNameFromString
 
 # Market
-@docs Market, market, Error, Request, Response
+@docs Market, market, Error, Request, Response, rateLimit
 
 # Symbols
 @docs Symbol, emptySymbol, symbolToString, symbolFromString
@@ -146,8 +147,8 @@ marketNameFromString str =
 
 {-| Represents an Error from a market API.
 -}
-type alias Error =
-    Http.Error
+type Error
+    = Error Market Http.Error
 
 
 {-| Represents a market API.
@@ -190,6 +191,13 @@ pairs (Market market) =
     PairsRequest (Market market) market.pairs
 
 
+{-| rateLimit
+-}
+rateLimit : Market -> Time
+rateLimit (Market market) =
+    market.rateLimit
+
+
 {-| OrderBooks list
 -}
 orderBooks : Market -> List Pair -> List Request
@@ -219,10 +227,10 @@ type Request
 {-| Market Response
 -}
 type Response
-    = PairsResponse MarketName (List Pair)
-    | OrderBooksResponse MarketName (List OrderBook)
-    | RecentTradesResponse MarketName (List Trade)
-    | ErrorResponse MarketName Error
+    = PairsResponse Market (List Pair)
+    | OrderBooksResponse Market (List OrderBook)
+    | RecentTradesResponse Market (List Trade)
+    | ErrorResponse Market Error
 
 
 {-| Represents a tradeable pair such as BSD/USD, XAU/USD, etc.

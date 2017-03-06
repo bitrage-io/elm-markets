@@ -3,8 +3,6 @@ module Markets
         ( all
         , poloniex
         , State
-        , init
-        , update
         )
 
 {-|
@@ -12,8 +10,6 @@ module Markets
 # Markets
 @docs all, poloniex
 
-# Config
-@docs Config, config
 
 # State
 @docs State
@@ -76,19 +72,14 @@ queue : State -> Request -> State
 queue (State state) request =
     let
         market =
-            case request of
-                PairsRequest market _ ->
-                    market
+            requestMarket request
 
-                OrderBooksRequest market _ ->
-                    market
-
-                RecentTradesRequest market _ ->
-                    market
+        marketName =
+            Market.marketName market
 
         oldMarketState =
             state
-                |> EveryDict.get market.name
+                |> EveryDict.get marketName
                 |> Maybe.withDefault (initialMarketState market)
 
         newMarketState =
@@ -101,7 +92,7 @@ queue (State state) request =
             }
     in
         state
-            |> EveryDict.insert market.name newMarketState
+            |> EveryDict.insert marketName newMarketState
             |> State
 
 
@@ -118,7 +109,7 @@ check now (State state) =
 
         newState =
             marketStates
-                |> List.map (\marketState -> ( marketState.market.name, marketState ))
+                |> List.map (\marketState -> ( Market.marketName marketState.market, marketState ))
                 |> EveryDict.fromList
 
         requests =
@@ -129,7 +120,7 @@ check now (State state) =
 
 checkMarketState : Time -> MarketState -> ( MarketState, Maybe Request )
 checkMarketState now marketState =
-    if now - marketState.lastFetched > marketState.market.rateLimit then
+    if now - marketState.lastFetched > Market.rateLimit marketState.market then
         let
             request =
                 List.head marketState.requests
@@ -149,29 +140,32 @@ checkMarketState now marketState =
         ( marketState, Nothing )
 
 
-{-| Send a Market request
--}
-send : (Response -> msg) -> Request -> Cmd msg
+send : (Result Error Response -> msg) -> Request -> Cmd msg
 send toMsg request =
+    Task.attempt toMsg <| task request
+
+
+requestMarket : Request -> Market
+requestMarket request =
+    case request of
+        PairsRequest market _ ->
+            market
+
+        OrderBooksRequest market _ ->
+            market
+
+        RecentTradesRequest market _ ->
+            market
+
+
+task : Request -> Task Error Response
+task request =
     case request of
         PairsRequest market task ->
-            attempt toMsg market PairsResponse task
+            Task.map (PairsResponse market) task
 
         OrderBooksRequest market task ->
-            attempt toMsg market OrderBooksResponse task
+            Task.map (OrderBooksResponse market) task
 
         RecentTradesRequest market task ->
-            attempt toMsg market RecentTradesResponse task
-
-
-attempt : (Response -> msg) -> Market -> (MarketName -> x -> Response) -> Task Error x -> Cmd msg
-attempt toMsg market toResponse =
-    Task.attempt
-        (\result ->
-            case result of
-                Ok x ->
-                    toMsg <| toResponse (Market.marketName market) x
-
-                Err error ->
-                    toMsg <| ErrorResponse (Market.marketName market) error
-        )
+            Task.map (RecentTradesResponse market) task

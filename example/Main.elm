@@ -51,18 +51,16 @@ update msg model =
             in
                 { model | markets = markets } ! [ cmd ]
 
-        MarketResponse response ->
+        MarketResponse (Ok response) ->
             case response of
                 Market.PairsResponse marketName pairs ->
                     let
                         _ =
                             Debug.log "Pairs" ( marketName, pairs )
-
-                        markets =
-                            Markets.
                     in
                         model
                             ! [ Markets.orderBooks MarketResponse model.markets
+                              , Markets.recentTrades MarketResponse model.markets
                               ]
 
                 Market.OrderBooksResponse marketName orderBooks ->
@@ -79,12 +77,12 @@ update msg model =
                     in
                         model ! []
 
-                Market.ErrorResponse marketName error ->
-                    let
-                        _ =
-                            Debug.log "error" error
-                    in
-                        model ! []
+        MarketResponse (Err error) ->
+            let
+                _ =
+                    Debug.log "Error" error
+            in
+                model ! []
 
 
 subscriptions : Model -> Sub Msg
