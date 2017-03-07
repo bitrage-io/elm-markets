@@ -1,4 +1,4 @@
-module Markets.Poloniex.TradeHistory exposing (..)
+module Market.Api.Poloniex.RecentTrades exposing (..)
 
 import Date exposing (Date)
 import Erl
@@ -7,7 +7,7 @@ import Json.Decode.Extra as D
 import Json.Decode.Pipeline as D
 import Market exposing (..)
 import Market.Decode as D
-import Markets.Poloniex.Util as Util
+import Market.Api.Poloniex.Util as Util
 import Time exposing (Time)
 
 

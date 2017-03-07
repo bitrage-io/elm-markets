@@ -1,19 +1,9 @@
 module Market
     exposing
-        ( MarketName(..)
-        , emptyMarketName
-        , marketNameToString
-        , marketNameFromString
-        , Market
-        , market
-        , marketName
-        , rateLimit
-        , pairs
-        , orderBooks
-        , recentTrades
-        , Error
-        , Request(..)
-        , Response(..)
+        ( Market(..)
+        , emptyMarket
+        , marketToString
+        , marketFromString
         , Pair
         , emptyPair
         , pairToString
@@ -32,11 +22,11 @@ module Market
 
 {-|
 
-# MarketName
-@docs MarketName, emptyMarketName, marketName, marketNameToString, marketNameFromString
-
 # Market
-@docs Market, market, Error, Request, Response, rateLimit
+@docs Market, emptyMarket, marketToString, marketFromString
+
+# Market.Api
+@docs Market.Api, api, Error, Request, Response, rateLimit
 
 # Symbols
 @docs Symbol, emptySymbol, symbolToString, symbolFromString
@@ -53,20 +43,15 @@ module Market
 # Trades
 @docs Trade
 
-@docs pairs, orderBooks, recentTrades
-
 -}
 
-import Http
 import Date exposing (Date)
-import Task exposing (Task)
-import Time exposing (Time)
 
 
 {-| Represents the name of an exchange.
 -}
-type MarketName
-    = UnknownMarketName String
+type Market
+    = UnknownMarket String
     | Bitfinex
     | BitMex
     | Bitstamp
@@ -78,20 +63,51 @@ type MarketName
     | Poloniex
 
 
-{-| A placeholder MarketName
+{-| Represents an order to buy or sell at a target price.
 -}
-emptyMarketName : MarketName
-emptyMarketName =
-    UnknownMarketName "Empty"
+type alias Order =
+    { price : String
+    , volume : String
+    }
 
 
-{-| Turns a MarketName into a display-friendly String.
+{-| Represents all the unfullfilled orders currently on a api.
 -}
-marketNameToString : MarketName -> String
-marketNameToString marketName =
-    case marketName of
-        UnknownMarketName str ->
-            str ++ " (Unknown)"
+type alias OrderBook =
+    { market : Market
+    , pair : Pair
+    , asks : List Order
+    , bids : List Order
+    }
+
+
+{-| Represents an executed trade.
+-}
+type alias Trade =
+    { id : Maybe String
+    , market : Market
+    , pair : Pair
+    , date : Date
+    , side : Side
+    , price : String
+    , volume : String
+    }
+
+
+{-| A placeholder Market
+-}
+emptyMarket : Market
+emptyMarket =
+    UnknownMarket "Empty"
+
+
+{-| Turns a Market into a display-friendly String.
+-}
+marketToString : Market -> String
+marketToString market =
+    case market of
+        UnknownMarket str ->
+            str
 
         Btce ->
             "BTC-E"
@@ -106,13 +122,13 @@ marketNameToString marketName =
             "HitBTC"
 
         _ ->
-            toString marketName
+            toString market
 
 
-{-| Attempts to turn a string into a MarketName.
+{-| Attempts to turn a string into a Market.
 -}
-marketNameFromString : String -> Result String MarketName
-marketNameFromString str =
+marketFromString : String -> Result String Market
+marketFromString str =
     case String.toLower str of
         "bitfinex" ->
             Ok Bitfinex
@@ -142,210 +158,10 @@ marketNameFromString str =
             Ok Poloniex
 
         _ ->
-            Err ("'" ++ str ++ "' is not a valid market name")
+            Ok <| UnknownMarket str
 
 
-{-| Represents an Error from a market API.
--}
-type Error
-    = Error Market Http.Error
-
-
-{-| Represents a market API.
--}
-type Market
-    = Market
-        { name : MarketName
-        , rateLimit : Time
-        , pairs : Task Error (List Pair)
-        , orderBooks : List Pair -> List (Task Error (List OrderBook))
-        , recentTrades : List Pair -> List (Task Error (List Trade))
-        }
-
-
-{-| Creates a new market
--}
-market :
-    { name : MarketName
-    , rateLimit : Time
-    , pairs : Task Error (List Pair)
-    , orderBooks : List Pair -> List (Task Error (List OrderBook))
-    , recentTrades : List Pair -> List (Task Error (List Trade))
-    }
-    -> Market
-market m =
-    Market m
-
-
-{-| Gets the market name from a market
--}
-marketName : Market -> MarketName
-marketName (Market market) =
-    market.name
-
-
-{-| Pair list
--}
-pairs : Market -> Request
-pairs (Market market) =
-    PairsRequest (Market market) market.pairs
-
-
-{-| rateLimit
--}
-rateLimit : Market -> Time
-rateLimit (Market market) =
-    market.rateLimit
-
-
-{-| OrderBooks list
--}
-orderBooks : Market -> List Pair -> List Request
-orderBooks (Market market) pairs =
-    pairs
-        |> market.orderBooks
-        |> List.map (OrderBooksRequest (Market market))
-
-
-{-| Trades list
--}
-recentTrades : Market -> List Pair -> List Request
-recentTrades (Market market) pairs =
-    pairs
-        |> market.recentTrades
-        |> List.map (RecentTradesRequest (Market market))
-
-
-{-| Market Request
--}
-type Request
-    = PairsRequest Market (Task Error (List Pair))
-    | OrderBooksRequest Market (Task Error (List OrderBook))
-    | RecentTradesRequest Market (Task Error (List Trade))
-
-
-{-| Market Response
--}
-type Response
-    = PairsResponse Market (List Pair)
-    | OrderBooksResponse Market (List OrderBook)
-    | RecentTradesResponse Market (List Trade)
-    | ErrorResponse Market Error
-
-
-{-| Represents a tradeable pair such as BSD/USD, XAU/USD, etc.
--}
-type alias Pair =
-    { base : Symbol
-    , quote : Symbol
-    }
-
-
-{-| A placeholder pair
--}
-emptyPair : Pair
-emptyPair =
-    { base = emptySymbol
-    , quote = emptySymbol
-    }
-
-
-{-| Turns a Pair into a display-friendly String.
--}
-pairToString : Pair -> String
-pairToString pair =
-    (symbolToString pair.base) ++ "/" ++ (symbolToString pair.quote)
-
-
-{-| Attemps to turn a String into a Pair
--}
-pairFromString : String -> Result String Pair
-pairFromString str =
-    case String.split "/" str of
-        [ baseStr, quoteStr ] ->
-            Result.map2 Pair
-                (symbolFromString baseStr)
-                (symbolFromString quoteStr)
-
-        _ ->
-            Err <| "'" ++ str ++ "' could not be converted to a pair"
-
-
-{-| Represents a long/short trade side.
--}
-type Side
-    = Buy
-    | Sell
-
-
-{-| Attempts to parse a Side from a String.
--}
-sideFromString : String -> Result String Side
-sideFromString str =
-    case String.toLower str of
-        "buy" ->
-            Ok Buy
-
-        "bid" ->
-            Ok Buy
-
-        "b" ->
-            Ok Buy
-
-        "ask" ->
-            Ok Sell
-
-        "sell" ->
-            Ok Sell
-
-        "s" ->
-            Ok Sell
-
-        _ ->
-            Err ("'" ++ str ++ "' is not a valid trade position")
-
-
-{-| Converts a Side to a String
--}
-sideToString : Side -> String
-sideToString =
-    toString
-
-
-{-| Represents an order to buy or sell at a target price.
--}
-type alias Order =
-    { price : String
-    , volume : String
-    }
-
-
-{-| Represents all the unfullfilled orders currently on a market.
--}
-type alias OrderBook =
-    { marketName : MarketName
-    , pair : Pair
-    , asks : List Order
-    , bids : List Order
-    }
-
-
-{-| Represents an executed trade.
--}
-type alias Trade =
-    { id : Maybe String
-    , marketName : MarketName
-    , pair : Pair
-    , date : Date
-    , side : Side
-    , price : String
-    , volume : String
-    }
-
-
-{-| Represents a tradable asset on an exchange. This could be crypto currencies,
-fiat currencies, stocks, commodities, etc.
--}
+{-| -}
 type Symbol
     = UnknownSymbol String
     | N_1CR
@@ -494,7 +310,7 @@ symbolToString : Symbol -> String
 symbolToString symbol =
     case symbol of
         UnknownSymbol name ->
-            name ++ " (Unknown)"
+            name
 
         N_1CR ->
             "1CR"
@@ -917,4 +733,83 @@ symbolFromString str =
             Ok ZEC
 
         _ ->
-            Err ("'" ++ str ++ "' is not a known symbol")
+            Ok <| UnknownSymbol str
+
+
+{-| Represents a tradeable pair such as BSD/USD, XAU/USD, etc.
+-}
+type alias Pair =
+    { base : Symbol
+    , quote : Symbol
+    }
+
+
+{-| A placeholder pair
+-}
+emptyPair : Pair
+emptyPair =
+    { base = emptySymbol
+    , quote = emptySymbol
+    }
+
+
+{-| Turns a Pair into a display-friendly String.
+-}
+pairToString : Pair -> String
+pairToString pair =
+    (symbolToString pair.base) ++ "/" ++ (symbolToString pair.quote)
+
+
+{-| Attemps to turn a String into a Pair
+-}
+pairFromString : String -> Result String Pair
+pairFromString str =
+    case String.split "/" str of
+        [ baseStr, quoteStr ] ->
+            Result.map2 Pair
+                (symbolFromString baseStr)
+                (symbolFromString quoteStr)
+
+        _ ->
+            Err <| "'" ++ str ++ "' could not be converted to a pair"
+
+
+{-| Represents a long/short trade side.
+-}
+type Side
+    = Buy
+    | Sell
+
+
+{-| Attempts to parse a Side from a String.
+-}
+sideFromString : String -> Result String Side
+sideFromString str =
+    case String.toLower str of
+        "buy" ->
+            Ok Buy
+
+        "bid" ->
+            Ok Buy
+
+        "b" ->
+            Ok Buy
+
+        "ask" ->
+            Ok Sell
+
+        "sell" ->
+            Ok Sell
+
+        "s" ->
+            Ok Sell
+
+        _ ->
+            Err ("'" ++ str ++ "' is not a valid trade position")
+
+
+{-| Converts a Side to a String
+-}
+sideToString : Side -> String
+sideToString =
+    toString

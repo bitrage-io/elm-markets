@@ -1,4 +1,4 @@
-module Markets.Poloniex.Util exposing (..)
+module Market.Api.Poloniex.Util exposing (..)
 
 import Market exposing (Symbol(USD), Pair)
 

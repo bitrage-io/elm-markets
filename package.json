@@ -7,13 +7,16 @@
     "test": "test"
   },
   "scripts": {
-    "start": "cd example && elm-reactor",
+    "start": "make example",
     "test": "elm-test"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "browser-sync": "^2.18.8",
+    "concurrently": "^3.4.0",
     "elm": "^0.18.0",
-    "elm-test": "^0.18.2"
+    "elm-test": "^0.18.2",
+    "nodemon": "^1.11.0"
   }
 }

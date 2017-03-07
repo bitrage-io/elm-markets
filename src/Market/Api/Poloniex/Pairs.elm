@@ -1,10 +1,10 @@
-module Markets.Poloniex.PairList exposing (..)
+module Market.Api.Poloniex.Pairs exposing (..)
 
 import Dict
 import Json.Decode exposing (..)
 import Json.Decode.Extra exposing (..)
 import Market exposing (Pair)
-import Markets.Poloniex.Util as Util
+import Market.Api.Poloniex.Util as Util
 
 
 url : String

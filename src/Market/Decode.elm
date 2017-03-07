@@ -1,6 +1,6 @@
 module Market.Decode
     exposing
-        ( marketName
+        ( market
         , symbol
         , pair
         , side
@@ -11,58 +11,58 @@ module Market.Decode
 
 {-|
 
-@docs marketName, symbol, pair, side, order, orderBook, trade
+@docs market, symbol, pair, side, order, orderBook, trade
 -}
 
 import Json.Decode exposing (..)
 import Json.Decode.Extra exposing (..)
 import Json.Decode.Pipeline exposing (..)
-import Market exposing (..)
+import Market
 
 
 {-| Decodes a Market
 -}
-marketName : Decoder MarketName
-marketName =
-    customDecoder string marketNameFromString
+market : Decoder Market.Market
+market =
+    customDecoder string Market.marketFromString
 
 
 {-| Decodes a Symbol
 -}
-symbol : Decoder Symbol
+symbol : Decoder Market.Symbol
 symbol =
-    customDecoder string symbolFromString
+    customDecoder string Market.symbolFromString
 
 
 {-| Decodes a Pair
 -}
-pair : Decoder Pair
+pair : Decoder Market.Pair
 pair =
-    customDecoder string pairFromString
+    customDecoder string Market.pairFromString
 
 
 {-| Decodes a Side
 -}
-side : Decoder Side
+side : Decoder Market.Side
 side =
-    customDecoder string sideFromString
+    customDecoder string Market.sideFromString
 
 
 {-| Decodes an Order
 -}
 order : Decoder Market.Order
 order =
-    decode Order
+    decode Market.Order
         |> required "price" string
         |> required "volume" string
 
 
 {-| Decodes an OrderBook
 -}
-orderBook : Decoder OrderBook
+orderBook : Decoder Market.OrderBook
 orderBook =
-    decode OrderBook
-        |> required "marketName" marketName
+    decode Market.OrderBook
+        |> required "market" market
         |> required "pair" pair
         |> required "asks" (list order)
         |> required "bids" (list order)
@@ -70,11 +70,11 @@ orderBook =
 
 {-| Decodes a Trade
 -}
-trade : Decoder Trade
+trade : Decoder Market.Trade
 trade =
-    decode Trade
+    decode Market.Trade
         |> optional "id" (maybe string) Nothing
-        |> required "marketName" marketName
+        |> required "market" market
         |> required "pair" pair
         |> required "date" date
         |> required "side" side

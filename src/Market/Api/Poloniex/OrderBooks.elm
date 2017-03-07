@@ -1,4 +1,4 @@
-module Markets.Poloniex.OrderBook exposing (..)
+module Market.Api.Poloniex.OrderBooks exposing (..)
 
 import Dict exposing (Dict)
 import Erl
@@ -6,7 +6,7 @@ import Json.Decode exposing (..)
 import Json.Decode.Extra exposing (..)
 import Json.Decode.Pipeline exposing (..)
 import Market exposing (..)
-import Markets.Poloniex.Util as Util
+import Market.Api.Poloniex.Util as Util
 
 
 type alias Options =
