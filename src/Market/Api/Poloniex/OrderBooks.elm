@@ -5,12 +5,13 @@ import Erl
 import Json.Decode exposing (..)
 import Json.Decode.Extra exposing (..)
 import Json.Decode.Pipeline exposing (..)
-import Market exposing (..)
+import Market
 import Market.Api.Poloniex.Util as Util
+import Market.Decode
 
 
 type alias Options =
-    { pair : Maybe Pair
+    { pair : Maybe Market.Pair
     , depth : Int
     }
 
@@ -34,12 +35,12 @@ url options =
             |> Erl.toString
 
 
-decoder : Maybe Pair -> Decoder (List OrderBook)
+decoder : Maybe Market.Pair -> Decoder (List Market.OrderBook)
 decoder maybePair =
     case maybePair of
         Just pair ->
             oneOf
-                [ singleDecoder pair |> andThen (\orderBook -> succeed [ orderBook ])
+                [ singleDecoder pair |> andThen (\o -> succeed [ o ])
                 , multipleDecoder
                 ]
 
@@ -47,21 +48,24 @@ decoder maybePair =
             multipleDecoder
 
 
-singleDecoder : Pair -> Decoder OrderBook
+singleDecoder : Market.Pair -> Decoder Market.OrderBook
 singleDecoder pair =
-    decode OrderBook
-        |> hardcoded Poloniex
+    decode Market.OrderBook
+        |> hardcoded Market.Poloniex
         |> hardcoded pair
+        |> hardcoded Market.emptyOrder
         |> required "asks" (list orderDecoder)
+        |> hardcoded Market.emptyOrder
         |> required "bids" (list orderDecoder)
+        |> andThen Market.Decode.orderBookBestPrices
 
 
-multipleDecoder : Decoder (List OrderBook)
+multipleDecoder : Decoder (List Market.OrderBook)
 multipleDecoder =
-    customDecoder (dict <| singleDecoder <| emptyPair) fromDict
+    customDecoder (dict <| singleDecoder <| Market.emptyPair) fromDict
 
 
-fromDict : Dict String OrderBook -> Result String (List OrderBook)
+fromDict : Dict String Market.OrderBook -> Result String (List Market.OrderBook)
 fromDict orderBooks =
     orderBooks
         |> Dict.toList
@@ -69,7 +73,7 @@ fromDict orderBooks =
         |> Ok
 
 
-withPair : ( String, OrderBook ) -> Maybe OrderBook
+withPair : ( String, Market.OrderBook ) -> Maybe Market.OrderBook
 withPair ( pairStr, orderBook ) =
     case Util.pairFromString pairStr of
         Ok pair ->
@@ -81,6 +85,8 @@ withPair ( pairStr, orderBook ) =
 
 orderDecoder : Decoder Market.Order
 orderDecoder =
-    map2 Market.Order
-        (index 0 string)
-        (index 1 (asString float toString))
+    decode Market.Order
+        |> custom (index 0 string)
+        |> custom (index 0 anyFloat)
+        |> custom (index 1 (asString float toString))
+        |> custom (index 1 anyFloat)

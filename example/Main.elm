@@ -19,15 +19,15 @@ main =
 
 
 type alias Model =
-    { pairs : List Market.Pair
-    , orderBooks : Dict.Dict String Market.OrderBook
+    { apis : List Market.Api.Api
+    , orderBooks : Dict.Dict String (List Market.OrderBook)
     , error : Maybe Market.Api.Error
     }
 
 
 emptyModel : Model
 emptyModel =
-    { pairs = []
+    { apis = Markets.browserSafe
     , orderBooks = Dict.empty
     , error = Nothing
     }
@@ -41,10 +41,7 @@ type Msg
 
 init : ( Model, Cmd Msg )
 init =
-    emptyModel
-        ! [ Market.Api.pairs PairsResponse Markets.poloniex
-          , Market.Api.orderBooks OrderBooksResponse Markets.poloniex emptyModel.pairs
-          ]
+    emptyModel ! List.map (Market.Api.pairs PairsResponse) emptyModel.apis
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -52,28 +49,46 @@ update msg model =
     case msg of
         Fetch _ ->
             model
-                ! [ Market.Api.orderBooks OrderBooksResponse Markets.poloniex model.pairs
-                  ]
+                ! List.map (Market.Api.orderBooks OrderBooksResponse { pairs = [], depth = 100 }) model.apis
 
         PairsResponse (Ok pairs) ->
-            { model | pairs = pairs }
-                ! [ Market.Api.orderBooks OrderBooksResponse Markets.poloniex pairs ]
+            let
+                orderBooks =
+                    pairs
+                        |> List.map (\p -> ( Market.pairToString p, [] ))
+                        |> Dict.fromList
+                        |> Dict.union model.orderBooks
+            in
+                { model | orderBooks = orderBooks }
+                    ! List.map (Market.Api.orderBooks OrderBooksResponse { pairs = pairs, depth = 100 }) model.apis
 
         PairsResponse (Err error) ->
             { model | error = Just error } ! []
 
         OrderBooksResponse (Ok orderBooks) ->
-            { model
-                | orderBooks =
-                    orderBooks
-                        |> List.map (\o -> ( Market.pairToString o.pair, o ))
-                        |> Dict.fromList
-                        |> (flip Dict.union) model.orderBooks
-            }
-                ! []
+            { model | orderBooks = List.foldl updateOrderBooks model.orderBooks orderBooks } ! []
 
         OrderBooksResponse (Err error) ->
             { model | error = Just error } ! []
+
+
+updateOrderBooks :
+    Market.OrderBook
+    -> Dict.Dict String (List Market.OrderBook)
+    -> Dict.Dict String (List Market.OrderBook)
+updateOrderBooks orderBook allOrderBooks =
+    let
+        pairStr =
+            Market.pairToString orderBook.pair
+
+        pairOrderBooks =
+            allOrderBooks
+                |> Dict.get pairStr
+                |> Maybe.withDefault []
+                |> List.filter (\ob -> ob.market == orderBook.market)
+                |> (::) orderBook
+    in
+        Dict.insert pairStr pairOrderBooks allOrderBooks
 
 
 subscriptions : Model -> Sub Msg
@@ -98,7 +113,7 @@ view model =
             , Html.tbody [] <|
                 case model.error of
                     Nothing ->
-                        List.map (pairView model) model.pairs
+                        List.map orderBooksView <| Dict.toList model.orderBooks
 
                     Just error ->
                         [ errorView error ]
@@ -106,42 +121,26 @@ view model =
         ]
 
 
-pairView : Model -> Market.Pair -> Html.Html Msg
-pairView model pair =
+orderBooksView : ( String, List Market.OrderBook ) -> Html.Html Msg
+orderBooksView ( pairStr, orderBooks ) =
     let
-        pairStr =
-            Market.pairToString pair
-
-        maybeOrderBook =
-            Dict.get pairStr model.orderBooks
-
         maybeLowestAsk =
-            case maybeOrderBook of
-                Just orderBook ->
-                    orderBook.asks
-                        |> List.filterMap (.price >> String.toFloat >> Result.toMaybe)
-                        |> List.sort
-                        |> List.head
-
-                Nothing ->
-                    Nothing
+            orderBooks
+                |> List.sortBy (\ob -> ob.lowestAsk.price)
+                |> List.head
+                |> Maybe.andThen (Just << .lowestAsk)
 
         maybeHighestBid =
-            case maybeOrderBook of
-                Just orderBook ->
-                    orderBook.bids
-                        |> List.filterMap (.price >> String.toFloat >> Result.toMaybe)
-                        |> List.sort
-                        |> List.reverse
-                        |> List.head
-
-                Nothing ->
-                    Nothing
+            orderBooks
+                |> List.sortBy (\ob -> ob.highestBid.price)
+                |> List.reverse
+                |> List.head
+                |> Maybe.andThen (Just << .highestBid)
 
         maybeArbitrage =
             case ( maybeLowestAsk, maybeHighestBid ) of
                 ( Just lowestAsk, Just highestBid ) ->
-                    Just <| highestBid - lowestAsk
+                    Just <| highestBid.price - lowestAsk.price
 
                 _ ->
                     Nothing
@@ -150,13 +149,13 @@ pairView model pair =
             [ Html.th [] [ Html.text pairStr ]
             , Html.td []
                 [ maybeLowestAsk
-                    |> Maybe.andThen (Just << toString)
+                    |> Maybe.andThen (Just << .priceStr)
                     |> Maybe.withDefault "?"
                     |> Html.text
                 ]
             , Html.td []
                 [ maybeHighestBid
-                    |> Maybe.andThen (Just << toString)
+                    |> Maybe.andThen (Just << .priceStr)
                     |> Maybe.withDefault "?"
                     |> Html.text
                 ]
@@ -165,7 +164,6 @@ pairView model pair =
                     |> Maybe.andThen (Just << toString)
                     |> Maybe.withDefault "?"
                     |> Html.text
-                , Html.text <| Market.symbolToString pair.quote
                 ]
             ]
 

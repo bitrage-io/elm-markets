@@ -1,49 +1,41 @@
-module Markets.Btce exposing (..)
+module Market.Api.Btce exposing (..)
 
 import Http
-import Market.PublicApi as PublicApi exposing (PublicApi)
-import Markets.Btce.PairList as PairList
-import Markets.Btce.OrderBook as OrderBook
-import Markets.Btce.TradeHistory as TradeHistory
-import Model.Pair exposing (Pair)
-import Model.MarketName exposing (MarketName(Btce))
-import Model.OrderBook exposing (OrderBook)
-import Model.Trade exposing (Trade)
-import Task exposing (Task)
-import Time exposing (Time)
+import Market
+import Market.Api
+import Market.Api.Btce.OrderBooks as OrderBooks
+import Market.Api.Btce.Pairs as Pairs
+import Market.Api.Btce.Trades as Trades
 
 
-publicApi : PublicApi
-publicApi =
-    { marketName = Btce
-    , rateLimit = 3 * Time.second
-    , pairList = Http.toTask <| Http.get PairList.url PairList.decoder
-    , orderBooks = orderBooks
-    , recentTradeHistory = recentTradeHistory
-    , fullTradeHistory = fullTradeHistory
-    }
+api : Market.Api.Api
+api =
+    Market.Api.http
+        { market = Market.Btce
+        , pairs = pairs
+        , orderBooks = orderBooks
+        , trades = trades
+        }
 
 
-orderBooks : List Pair -> List (Task PublicApi.Error (List OrderBook))
-orderBooks pairs =
+pairs : Http.Request (List Market.Pair)
+pairs =
+    Http.get Pairs.url Pairs.decoder
+
+
+orderBooks : Market.Api.OrderBooksOptions -> List (Http.Request (List Market.OrderBook))
+orderBooks { pairs } =
     { pairs = pairs
     }
-        |> OrderBook.url
-        |> (flip Http.get) OrderBook.decoder
-        |> Http.toTask
+        |> OrderBooks.url
+        |> (flip Http.get) OrderBooks.decoder
         |> (flip (::)) []
 
 
-recentTradeHistory : Time -> List Pair -> List (Task PublicApi.Error (List Trade))
-recentTradeHistory _ pairs =
+trades : Market.Api.TradesOptions -> List (Http.Request (List Market.Trade))
+trades { pairs } =
     { pairs = pairs
     }
-        |> TradeHistory.url
-        |> (flip Http.get) TradeHistory.decoder
-        |> Http.toTask
+        |> Trades.url
+        |> (flip Http.get) Trades.decoder
         |> (flip (::)) []
-
-
-fullTradeHistory : Time -> List Pair -> List (Task PublicApi.Error (List Trade))
-fullTradeHistory now pairs =
-    []

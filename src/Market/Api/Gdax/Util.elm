@@ -1,8 +1,8 @@
-module Markets.Gdax.Util exposing (..)
+module Market.Api.Gdax.Util exposing (..)
 
-import Model.Pair as Pair exposing (Pair)
+import Market
 
 
-pairToString : Pair -> String
+pairToString : Market.Pair -> String
 pairToString { base, quote } =
     (toString base) ++ "-" ++ (toString quote)

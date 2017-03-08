@@ -16,6 +16,7 @@ module Market
         , sideToString
         , sideFromString
         , Order
+        , emptyOrder
         , OrderBook
         , Trade
         )
@@ -38,7 +39,7 @@ module Market
 @docs Side, sideToString, sideFromString
 
 # Orders
-@docs Order, OrderBook
+@docs Order, emptyOrder, OrderBook
 
 # Trades
 @docs Trade
@@ -66,9 +67,17 @@ type Market
 {-| Represents an order to buy or sell at a target price.
 -}
 type alias Order =
-    { price : String
-    , volume : String
+    { priceStr : String
+    , price : Float
+    , volumeStr : String
+    , volume : Float
     }
+
+
+{-| -}
+emptyOrder : Order
+emptyOrder =
+    Order "" -1 "" -1
 
 
 {-| Represents all the unfullfilled orders currently on a api.
@@ -76,8 +85,10 @@ type alias Order =
 type alias OrderBook =
     { market : Market
     , pair : Pair
-    , asks : List Order
-    , bids : List Order
+    , lowestAsk : Order
+    , otherAsks : List Order
+    , highestBid : Order
+    , otherBids : List Order
     }
 
 
@@ -89,8 +100,10 @@ type alias Trade =
     , pair : Pair
     , date : Date
     , side : Side
-    , price : String
-    , volume : String
+    , priceStr : String
+    , price : Float
+    , volumeStr : String
+    , volume : Float
     }
 
 

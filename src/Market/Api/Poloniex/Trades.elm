@@ -1,4 +1,4 @@
-module Market.Api.Poloniex.RecentTrades exposing (..)
+module Market.Api.Poloniex.Trades exposing (..)
 
 import Date exposing (Date)
 import Erl
@@ -60,7 +60,9 @@ tradeDecoder pair =
         |> D.required "date" D.date
         |> D.required "type" D.side
         |> D.required "rate" D.string
+        |> D.required "rate" D.anyFloat
         |> D.required "amount" D.string
+        |> D.required "amount" D.anyFloat
 
 
 {-| Format the date as UTC/ISO so it picks up on the timezone

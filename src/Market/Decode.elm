@@ -6,12 +6,13 @@ module Market.Decode
         , side
         , order
         , orderBook
+        , orderBookBestPrices
         , trade
         )
 
 {-|
 
-@docs market, symbol, pair, side, order, orderBook, trade
+@docs market, symbol, pair, side, order, orderBook, orderBookBestPrices, trade
 -}
 
 import Json.Decode exposing (..)
@@ -53,8 +54,10 @@ side =
 order : Decoder Market.Order
 order =
     decode Market.Order
-        |> required "price" string
-        |> required "volume" string
+        |> required "price_str" string
+        |> required "price" float
+        |> required "volume_str" string
+        |> required "volume" float
 
 
 {-| Decodes an OrderBook
@@ -64,8 +67,52 @@ orderBook =
     decode Market.OrderBook
         |> required "market" market
         |> required "pair" pair
-        |> required "asks" (list order)
-        |> required "bids" (list order)
+        |> required "lowest_ask" order
+        |> required "other_asks" (list order)
+        |> required "highest_bid" order
+        |> required "other_bids" (list order)
+
+
+{-| -}
+orderBookBestPrices : Market.OrderBook -> Decoder Market.OrderBook
+orderBookBestPrices orderBook =
+    let
+        sortedAsks =
+            List.sortBy .price orderBook.otherAsks
+
+        maybeLowestAsk =
+            List.head sortedAsks
+
+        otherAsks =
+            List.tail sortedAsks |> Maybe.withDefault []
+
+        sortedBids =
+            List.sortBy .price orderBook.otherBids |> List.reverse
+
+        maybeHighestBid =
+            List.head sortedBids
+
+        otherBids =
+            List.tail sortedBids |> Maybe.withDefault []
+    in
+        case ( maybeLowestAsk, maybeHighestBid ) of
+            ( Just lowestAsk, Just highestBid ) ->
+                succeed
+                    { orderBook
+                        | lowestAsk = lowestAsk
+                        , otherAsks = otherAsks
+                        , highestBid = highestBid
+                        , otherBids = otherBids
+                    }
+
+            ( Just _, Nothing ) ->
+                fail "OrderBook had no lowest ask"
+
+            ( Nothing, Just _ ) ->
+                fail "OrderBook had no highest bid"
+
+            ( Nothing, Nothing ) ->
+                fail "OrderBook had no orders"
 
 
 {-| Decodes a Trade
@@ -78,5 +125,7 @@ trade =
         |> required "pair" pair
         |> required "date" date
         |> required "side" side
-        |> required "price" string
-        |> required "volume" string
+        |> required "price_str" string
+        |> required "price" float
+        |> required "volume_str" string
+        |> required "volume" float

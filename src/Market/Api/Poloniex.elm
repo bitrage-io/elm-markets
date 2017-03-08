@@ -5,7 +5,7 @@ import Market
 import Market.Api
 import Market.Api.Poloniex.Pairs as Pairs
 import Market.Api.Poloniex.OrderBooks as OrderBooks
-import Market.Api.Poloniex.RecentTrades as RecentTrades
+import Market.Api.Poloniex.Trades as Trades
 
 
 api : Market.Api.Api
@@ -14,7 +14,7 @@ api =
         { market = Market.Poloniex
         , pairs = pairs
         , orderBooks = orderBooks
-        , recentTrades = recentTrades
+        , trades = trades
         }
 
 
@@ -23,26 +23,26 @@ pairs =
     Http.get Pairs.url Pairs.decoder
 
 
-orderBooks : List Market.Pair -> List (Http.Request (List Market.OrderBook))
-orderBooks _ =
+orderBooks : Market.Api.OrderBooksOptions -> List (Http.Request (List Market.OrderBook))
+orderBooks { depth } =
     { pair = Nothing
-    , depth = 100
+    , depth = depth
     }
         |> OrderBooks.url
         |> (flip Http.get) (OrderBooks.decoder Nothing)
         |> (flip (::)) []
 
 
-recentTrades : List Market.Pair -> List (Http.Request (List Market.Trade))
-recentTrades =
-    List.map recentTradeHistorySingle
+trades : Market.Api.TradesOptions -> List (Http.Request (List Market.Trade))
+trades { pairs } =
+    List.map tradesSingle pairs
 
 
-recentTradeHistorySingle : Market.Pair -> Http.Request (List Market.Trade)
-recentTradeHistorySingle pair =
+tradesSingle : Market.Pair -> Http.Request (List Market.Trade)
+tradesSingle pair =
     { pair = pair
     , start = Nothing
     , end = Nothing
     }
-        |> RecentTrades.url
-        |> (flip Http.get) (RecentTrades.decoder pair)
+        |> Trades.url
+        |> (flip Http.get) (Trades.decoder pair)

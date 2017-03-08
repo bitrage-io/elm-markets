@@ -3,7 +3,7 @@ export SHELL := /bin/bash
 
 
 build-example:
-	elm-make example/Main.elm --output example/index.html
+	elm-make example/Main.elm --output example/index.js
 
 serve-example:
 	cd example && browser-sync start --server -f index.html
@@ -12,6 +12,6 @@ watch-example:
 	nodemon -C -e elm -w src -w example --exec "make build-example || exit 1"
 
 example: build-example
-	concurrently --kill-others "make serve-example" "make watch-example"
+	concurrently --raw --kill-others "make serve-example" "make watch-example"
 
 .PHONY: build-example serve-example watch-example example

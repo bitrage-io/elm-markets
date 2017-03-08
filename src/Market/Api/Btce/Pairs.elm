@@ -1,10 +1,10 @@
-module Markets.Btce.PairList exposing (..)
+module Market.Api.Btce.Pairs exposing (..)
 
-import Markets.Btce.Util as Util
 import Dict
 import Json.Decode exposing (..)
 import Json.Decode.Extra exposing (..)
-import Model.Pair as Pair exposing (Pair)
+import Market
+import Market.Api.Btce.Util as Util
 
 
 url : String
@@ -12,7 +12,7 @@ url =
     "https://btc-e.com/api/3/info"
 
 
-decoder : Decoder (List Pair)
+decoder : Decoder (List Market.Pair)
 decoder =
     customDecoder (field "pairs" (dict <| succeed ()))
         (\d ->
